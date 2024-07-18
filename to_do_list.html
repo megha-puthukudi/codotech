@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enhanced To-Do List</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: #f9f9f9;
+            border: 2px solid #eee;
+            border-radius: 5px;
+            transition: transform 0.2s;
+            cursor: grab;
+        }
+        .task-item.completed {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .task-item button {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.2s;
+        }
+        .task-item button:hover {
+            transform: scale(1.2);
+        }
+        .task-item button .icon {
+            font-size: 16px;
+        }
+        .filters {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+        .filters button {
+            padding: 5px 10px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #fff;
+            transition: background-color 0.3s;
+        }
+        .filters button.active,
+        .filters button:hover {
+            background-color: #5cb85c;
+            color: white;
+            border-color: #4cae4c;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+</head>
+<body>
+
+<div class="container">
+    <h1>To-Do List</h1>
+    <input type="text" id="taskInput" placeholder="Add a new task...">
+    <div class="filters">
+        <button onclick="filterTasks('all')" class="active">All</button>
+        <button onclick="filterTasks('completed')">Completed</button>
+        <button onclick="filterTasks('incomplete')">Incomplete</button>
+    </div>
+    <ul id="taskList" class="task-list"></ul>
+</div>
+
+<script>
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+    document.getElementById('taskInput').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            addTask();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadTasks);
+
+    function addTask() {
+        const taskInput = document.getElementById('taskInput');
+        const taskText = taskInput.value.trim();
+        if (taskText === '') return;
+
+        const task = {
+            text: taskText,
+            completed: false,
+            timestamp: new Date().toISOString()
+        };
+        tasks.push(task);
+        saveTasks();
+        renderTasks();
+
+        taskInput.value = '';
+        taskInput.focus();
+    }
+
+    function createTaskElement(task) {
+        const li = document.createElement('li');
+        li.className = 'task-item fade-in';
+        if (task.completed) {
+            li.classList.add('completed');
+        }
+        li.setAttribute('draggable', 'true');
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragover', handleDragOver);
+        li.addEventListener('drop', handleDrop);
+
+        const span = document.createElement('span');
+        const date = new Date(task.timestamp);
+        const formattedDate = new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric'
+        }).format(date);
+        span.textContent = `${task.text} (Added on: ${formattedDate})`;
+
+        const completeButton = document.createElement('button');
+        completeButton.innerHTML = '<i class="fas fa-check icon"></i>';
+        completeButton.addEventListener('click', function() {
+            task.completed = !task.completed;
+            saveTasks();
+            renderTasks();
+        });
+
+        const editButton = document.createElement('button');
+        editButton.innerHTML = '<i class="fas fa-edit icon"></i>';
+        editButton.addEventListener('click', function() {
+            const newTaskText = prompt('Edit task:', task.text);
+            if (newTaskText !== null) {
+                task.text = newTaskText.trim();
+                saveTasks();
+                renderTasks();
+            }
+        });
+
+        const removeButton = document.createElement('button');
+        removeButton.innerHTML = '<i class="fas fa-trash icon"></i>';
+        removeButton.addEventListener('click', function() {
+            tasks = tasks.filter(t => t !== task);
+            saveTasks();
+            renderTasks();
+        });
+
+        li.appendChild(span);
+        li.appendChild(completeButton);
+        li.appendChild(editButton);
+        li.appendChild(removeButton);
+
+        return li;
+    }
+
+    function saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    function loadTasks() {
+        renderTasks();
+    }
+
+    function renderTasks(filter = 'all') {
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+
+        let filteredTasks = tasks;
+        if (filter === 'completed') {
+            filteredTasks = tasks.filter(task => task.completed);
+        } else if (filter === 'incomplete') {
+            filteredTasks = tasks.filter(task => !task.completed);
+        }
+
+        filteredTasks.forEach(task => {
+            const li = createTaskElement(task);
+            taskList.appendChild(li);
+        });
+
+        document.querySelectorAll('.filters button').forEach(button => {
+            button.classList.remove('active');
+        });
+        document.querySelector(`.filters button[onclick="filterTasks('${filter}')"]`).classList.add('active');
+    }
+
+    function filterTasks(status) {
+        renderTasks(status);
+    }
+
+    let dragSrcEl = null;
+
+    function handleDragStart(e) {
+        this.style.opacity = '0.4';
+        dragSrcEl = this;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        if (dragSrcEl !== this) {
+            dragSrcEl.innerHTML = this.innerHTML;
+            this.innerHTML = e.dataTransfer.getData('text/html');
+
+            const dragSrcTaskIndex = Array.from(dragSrcEl.parentNode.children).indexOf(dragSrcEl);
+            const dropTargetTaskIndex = Array.from(this.parentNode.children).indexOf(this);
+
+            const [draggedTask] = tasks.splice(dragSrcTaskIndex, 1);
+            tasks.splice(dropTargetTaskIndex, 0, draggedTask);
+
+            saveTasks();
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>
